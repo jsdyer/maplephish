@@ -1,16 +1,22 @@
 {
-  "id": "coolcode-tool-template",
-  "title": "CoolCode Tool Starter",
-  "description": "A browser-only example that trims lines and removes exact duplicates.",
+  "id": "maplephish",
+  "title": "Maple Phish",
+  "description": "Canadian-brand phishing signals, with evidence kept in context.",
   "category": "security",
-  "tags": ["text", "lines", "duplicates"],
+  "tags": [
+    "phishing",
+    "Canada",
+    "threat intelligence",
+    "evidence"
+  ],
   "icon": "scan-search",
-  "url": "/coolcode-tool-template/",
-  "source": "https://github.com/jsdyer/coolcode-tool-template",
+  "url": "/maplephish/",
+  "source": "https://github.com/jsdyer/maplephish",
   "hosting": "project",
   "access": "browser",
   "data_info": {
-    "mode": "local",
-    "detail": "The browser reads the text you paste and compares its lines."
+    "mode": "mixed",
+    "detail": "Daily derived PhishStats summaries and separately labelled URLhaus malware signals; URL-level imports stay in your browser.",
+    "cadence": "Daily"
   }
 }

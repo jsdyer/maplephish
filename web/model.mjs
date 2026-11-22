@@ -1,7 +1,7 @@
-// Keep transformations separate from the DOM so they can be tested directly.
-export function cleanLines(text) {
-  if (typeof text !== 'string') throw new TypeError('Expected text');
-  const lines = text.split(/\r\n|\r|\n/).map(line => line.trim()).filter(Boolean);
-  const unique = [...new Set(lines)];
-  return { text: unique.join('\n'), count: unique.length, removed: lines.length - unique.length };
-}
+export const BRANDS=[['Interac',['interac']],['RBC',['rbc','royal bank']],['Canada Post',['canadapost','canada post']],['Scotiabank',['scotiabank']],['CIBC',['cibc']],['Desjardins',['desjardins']]];
+export function defang(value){return String(value??'').replace(/^https:/i,'hxxps:').replace(/^http:/i,'hxxp:').replaceAll('.', '[.]');}
+export function redacted(value){try{const u=new URL(value);if(!['http:','https:'].includes(u.protocol))return 'Unavailable';return u.protocol+'//'+u.host+u.pathname+(u.search?'?[values removed]':'');}catch{return 'Unavailable';}}
+export function brandMatches(row){const s=String(row.url||'')+' '+String(row.title||'');return BRANDS.filter(([,terms])=>terms.some(t=>new RegExp('(^|[^a-z])'+t+'([^a-z]|$)','i').test(s))).map(([label])=>label);}
+export function parseImport(input){const value=typeof input==='string'?JSON.parse(input):input;const source=Array.isArray(value)?'PhishStats':Array.isArray(value?.urls)?'URLhaus':null;if(!source)throw Error('Choose a PhishStats JSON array or a URLhaus response with a urls array.');const raw=Array.isArray(value)?value:value.urls;if(raw.length>10000)throw Error('Maximum 10,000 records per import.');const seen=new Set();return raw.flatMap((r,index)=>{if(!r||typeof r!=='object'||typeof r.url!=='string')throw Error('Each record needs a URL.');const id=source+':'+String(r.id??index);if(seen.has(id))return [];seen.add(id);const brands=brandMatches(r);return [{id,source,kind:source==='URLhaus'?'malware':'phishing',brands:brands.length?brands:['No configured brand token'],url:defang(redacted(r.url)),title:String(r.title||''),reported_at:String(r.date||r.date_added||'Not reported'),updated_at:String(r.date_update||'Not reported'),asn:String(r.asn||'Not reported'),registrar:String(r.registrar||'Not supplied'),country:String(r.countrycode||'Not reported'),status:String(r.url_status||'Source report'),reference:source==='URLhaus'&&/^\d+$/.test(String(r.id))?'https://urlhaus.abuse.ch/url/'+r.id+'/':null}];});}
+export function filter(rows,{q='',brand='',kind=''}={}){q=q.toLowerCase().trim();return rows.filter(r=>(!q||JSON.stringify(r).toLowerCase().includes(q))&&(!brand||r.brands.includes(brand))&&(!kind||r.kind===kind));}
+export function csv(rows){const keys=['source','kind','brands','url','reported_at','updated_at','asn','registrar','country'];const cell=v=>{let s=Array.isArray(v)?v.join('; '):String(v??'');if(/^[\s]*[=+@\-]/.test(s))s="'"+s;return '"'+s.replaceAll('"','""')+'"';};return [keys.join(','),...rows.map(r=>keys.map(k=>cell(r[k])).join(','))].join('\r\n');}

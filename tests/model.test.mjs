@@ -1,21 +1,5 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { cleanLines } from '../web/model.mjs';
-test('trims, removes blanks and preserves first-seen order', () => {
-  assert.deepEqual(cleanLines('  Halifax\nLangley\nHalifax\n\nVancouver  '), {
-    text: 'Halifax\nLangley\nVancouver', count: 3, removed: 1,
-  });
-});
-test('supports Windows and old Mac line endings', () => {
-  assert.equal(cleanLines('a\r\nb\ra').text, 'a\nb');
-});
-test('empty text and whitespace produce an empty result', () => {
-  assert.deepEqual(cleanLines(' \n\t'), { text: '', count: 0, removed: 0 });
-});
-test('preserves case and Unicode', () => {
-  assert.equal(cleanLines('Québec\nquébec\n東京\nQuébec').text, 'Québec\nquébec\n東京');
-});
-test('treats markup as ordinary text', () => {
-  assert.equal(cleanLines('<script>alert(1)</script>\n<script>alert(1)</script>').text, '<script>alert(1)</script>');
-});
-test('rejects non-text input', () => { assert.throws(() => cleanLines(null), TypeError); });
+import test from 'node:test';import assert from 'node:assert/strict';import {parseImport,brandMatches,filter,csv,defang,redacted} from '../web/model.mjs';
+test('brand matching is a labelled token heuristic and avoids embedded acronyms',()=>{assert.deepEqual(brandMatches({url:'https://rbc-account.example/login'}),['RBC']);assert.deepEqual(brandMatches({url:'https://barbcode.example/'}),[]);assert.deepEqual(brandMatches({title:'Canada Post parcel'}),['Canada Post']);});
+test('imports keep malware separate and drop query secrets',()=>{const [r]=parseImport({urls:[{id:12,url:'https://user:password@interac-pay.example/pay?token=secret#private',date_added:'2026-01-02',url_status:'offline'}]});assert.equal(r.kind,'malware');assert.equal(r.source,'URLhaus');assert.equal(r.url,'hxxps://interac-pay[.]example/pay?[values removed]');assert.equal(r.registrar,'Not supplied');assert(!JSON.stringify(r).includes('password'));assert(!JSON.stringify(r).includes('secret'));assert.equal(r.reference,'https://urlhaus.abuse.ch/url/12/');});
+test('duplicates preserve one source ID and nulls rejected',()=>{assert.equal(parseImport([{id:1,url:'https://a.example'},{id:1,url:'https://b.example'}]).length,1);assert.throws(()=>parseImport({results:[]}));assert.throws(()=>parseImport([null]));});
+test('filters inspect local data and CSV mitigates formulas',()=>{const rows=parseImport([{id:1,url:'https://interac.example',title:'<img src=x>',asn:'=SUM(A1)'}]);assert.equal(filter(rows,{brand:'Interac',kind:'phishing'}).length,1);assert.equal(filter(rows,{kind:'malware'}).length,0);assert.match(csv(rows),/'=SUM/);assert.equal(redacted('javascript:alert(1)'),'Unavailable');assert.equal(defang('https://x.example'),'hxxps://x[.]example');});
