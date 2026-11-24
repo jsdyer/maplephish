@@ -42,3 +42,11 @@ python3 scripts/collect.py      # explicit provider refresh
 ```
 
 The Python app/collector uses only the standard library. CI installs Playwright as a test-only dependency and runs desktop/mobile import, safe rendering, filtering, CSV and source-classification checks. Failed collection or validation never commits replacement data or deploys. Application code is MIT licensed. Upstream data and services retain their own terms.
+
+<!-- schedule-reliability -->
+## Schedule reliability
+
+Public GitHub repositories can have scheduled workflows disabled after 60 days of inactivity. A separate weekly [schedule guard](.github/workflows/schedule-guard.yml) calls GitHub's enable-workflow API for an explicit list of refresh workflows and itself. It can restore workflows disabled for inactivity, preserves manually disabled workflows, and runs independently of collection failures.
+
+This is an interim mitigation, not a scheduling guarantee: GitHub does not document active-workflow renewal as a permanent exemption, and scheduled runs can be delayed or dropped. A scheduler on our own Linux server is the planned independent trigger. The guard does not collect data, create dummy commits, or change source/check timestamps; successful collection and published data freshness still need monitoring.
+<!-- /schedule-reliability -->
