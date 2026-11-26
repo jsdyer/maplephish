@@ -17,7 +17,20 @@ def main():
    with sync_playwright() as p:
     browser=p.chromium.launch();page=browser.new_page(viewport={'width':1440,'height':1000});errors=[];requests=[];page.on('pageerror',lambda e:errors.append(str(e)));page.on('request',lambda r:requests.append(r.url));page.goto(f'http://127.0.0.1:{server.server_port}/example-tool/');page.wait_for_function("document.querySelector('#checked').textContent.includes('T')");page.screenshot(path=str(screenshots/'desktop.png'),full_page=True)
     if ROOT.name=='maplephish':
-     page.locator('#signal-kind').select_option('malware');assert 'URLhaus' in page.locator('#brands').inner_text();page.locator('#signal-kind').select_option('phishing');page.locator('#brands .row-button').first.click();assert page.locator('#aggregate-detail').is_visible()
+     data=json.loads((ROOT/'dist/data/current.json').read_text())
+     records=[row for row in data['records'] if row['kind']=='phishing' and row['source']=='PhishStats']
+     example=page.locator('#open-example')
+     if records:
+      first=records[0]
+      assert example.inner_text()=='View '+first['brand']+' breakdown'
+      assert str(first['count'])+' distinct report' in page.locator('#example-count').inner_text()
+      example.click();assert first['brand']+' · aggregate evidence' in page.locator('#aggregate-detail').inner_text()
+      assert page.locator('#aggregate-detail a').count()==0
+     else:assert 'No phishing counts' in page.locator('.hero-note').inner_text()
+     page.locator('#signal-kind').select_option('malware');assert 'URLhaus' in page.locator('#brands').inner_text()
+     page.locator('#signal-kind').select_option('phishing')
+     if records:
+      page.locator('#brands .row-button').first.click();assert page.locator('#aggregate-detail').is_visible()
      row={'id':123,'url':'https://interac-TEST.example/path?token=SECRET','title':'<img src=x onerror=alert(1)>','asn':'AS64500','date':'2026-01-02'};page.locator('#input').fill(json.dumps([row]));page.locator('#import-button').click();assert '1 matching' in page.locator('#result-count').inner_text();page.locator('#rows .row-button').click();assert '<img' in page.locator('#evidence-detail').inner_text();assert 'SECRET' not in page.locator('#rows').inner_text();assert page.locator('img').count()==0
      with page.expect_download() as download:page.locator('#export-csv').click()
      assert download.value.suggested_filename.endswith('.csv');page.locator('#kind').select_option('malware');assert page.locator('#rows tr').count()==0;page.locator('#kind').select_option('');page.locator('#q').fill('unmatched');assert page.locator('#rows tr').count()==0;page.locator('#q').fill('');page.locator('#clear').click();assert page.locator('#rows tr').count()==0
@@ -28,7 +41,10 @@ def main():
      page.locator('#before').select_option(a);page.locator('#after').select_option(b);page.locator('#compare-button').click();assert 'beta[.]example' in page.locator('#comparison').inner_text();assert 'alpha[.]example' in page.locator('#comparison').inner_text()
      with page.expect_download() as download:page.locator('#export-json').click()
      assert download.value.suggested_filename.endswith('.json');page.locator('#scan-id').fill(a);page.locator('#lookup').click();assert page.locator('#lookup-links a').count()==2;assert 'api/v1/result' in page.locator('#lookup-links a').last.get_attribute('href');bad=fixture(a,'alpha.example','2026-01-01');bad['task']['visibility']='private';page.locator('#input').fill(json.dumps(bad));page.locator('#import-button').click();assert 'Only explicitly public' in page.locator('#status').inner_text();page.locator('#input').fill('');page.locator('#q').fill('no-match');assert page.locator('.receipt').count()==0;page.locator('#q').fill('')
-    page.screenshot(path=str(screenshots/'evidence-desktop.png'),full_page=True);page.set_viewport_size({'width':390,'height':844});assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth');page.screenshot(path=str(screenshots/'mobile.png'),full_page=True);assert not errors,errors;assert not any('.example/' in u for u in requests),requests;browser.close()
+    page.screenshot(path=str(screenshots/'evidence-desktop.png'),full_page=True);page.set_viewport_size({'width':390,'height':844});page.evaluate('window.scrollTo(0,0)')
+    if ROOT.name=='maplephish' and records:
+     box=page.locator('#open-example').bounding_box();assert box['y']+box['height']<844
+    assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth');page.screenshot(path=str(screenshots/'mobile.png'),full_page=True);assert not errors,errors;assert not any('.example/' in u for u in requests),requests;browser.close()
    print('Browser checks passed: data, safe imports, filters, exports, source boundaries and mobile layout')
   finally:server.shutdown()
 if __name__=='__main__':main()

@@ -40,6 +40,27 @@ def metadata(root=ROOT):
     return tool
 
 
+def brand_example(snapshot):
+    row = next((r for r in snapshot["records"] if r.get("kind") == "phishing" and r.get("source") == "PhishStats"), None)
+    if row is None:
+        return "<h2>Saved brand example</h2><p>No phishing counts are available in this observation.</p>"
+    brand = escape(row["brand"])
+    count, examined = row["count"], row["queried_rows"]
+    if type(count) is not int or type(examined) is not int or not 0 <= count <= examined:
+        raise ValueError("Invalid saved brand counts")
+    captured = escape(snapshot["captured_at"][:10])
+    record_id = escape(row["id"], quote=True)
+    reports = "report" if count == 1 else "reports"
+    entries = "row" if examined == 1 else "rows"
+    return (
+        f'<p class="example-date">Saved PhishStats sample · {captured} UTC</p>'
+        f'<h2>{brand}</h2><p id="example-count">{count} distinct {reports} matched the brand name '
+        f'among {examined} source {entries} examined.</p>'
+        f'<button type="button" id="open-example" class="btn" data-record="{record_id}" hidden>'
+        f'View {brand} breakdown</button>'
+    )
+
+
 def build(root=ROOT):
     tool = metadata(root)
     output = root / "dist"
@@ -71,6 +92,8 @@ def build(root=ROOT):
             if placeholder not in page:
                 raise ValueError(f"Missing template placeholder: {placeholder}")
             page = page.replace(placeholder, markup if on_coolcode else "")
+        snapshot = json.loads((root / "data/current.json").read_text(encoding="utf-8"))
+        page = page.replace("{{BRAND_EXAMPLE}}", brand_example(snapshot))
         if re.search(r"\{\{[A-Z_]+\}\}", page):
             raise ValueError("Unresolved template placeholder in web/index.html")
         index.write_text(page, encoding="utf-8")
